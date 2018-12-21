@@ -4,7 +4,7 @@ module Pos.Core.Slotting.SlotCount
 
 import           Universum
 
-import           Data.Aeson (ToJSON (..), FromJSON (..))
+import           Data.Aeson (FromJSON (..), ToJSON (..))
 import           Data.SafeCopy (base, deriveSafeCopySimple)
 import           System.Random (Random (..))
 
