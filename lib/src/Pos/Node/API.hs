@@ -562,10 +562,8 @@ instance Buildable SecurityParameter where
 
 instance ToSchema SecurityParameter where
     declareNamedSchema _ =
-        pure $ NamedSchema (Just "SecurityParameter") $ mempty
-            & type_ .~ SwaggerNumber
-            & maximum_ .~ Just (fromIntegral (maxBound :: Int))
-            & minimum_ .~ Just (fromIntegral (minBound :: Int))
+        declareNamedSchema (Proxy @Int)
+            <&> name .~ (Just "SecurityParameter")
 
 
 instance ToSchema (V1 Core.SlotId) where
