@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP             #-}
 {-# LANGUAGE DataKinds       #-}
+{-# LANGUAGE KindSignatures  #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeOperators   #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -12,7 +13,7 @@ import           Control.Lens (At, Index, IxValue, at, ix, makePrisms, (?~))
 import           Data.Aeson
 import qualified Data.Aeson.Options as Aeson
 import           Data.Aeson.TH as A
-import           Data.Aeson.Types (Value (..), toJSONKeyText)
+import           Data.Aeson.Types (Parser, Value (..), toJSONKeyText)
 import qualified Data.ByteArray as ByteArray
 import qualified Data.ByteString.Base64 as B64
 import qualified Data.ByteString.Char8 as BC8
@@ -460,15 +461,12 @@ instance BuildableSafeGen MaxTxSize where
         bprint (build%"bytes") w
 
 instance ToSchema MaxTxSize where
-    declareNamedSchema _ =
+    declareNamedSchema _ = do
         pure $ NamedSchema (Just "MaxTxSize") $ mempty
             & type_ .~ SwaggerObject
             & required .~ ["quantity"]
             & properties .~ (mempty
-                & at "quantity" ?~ (Inline $ mempty
-                    & type_ .~ SwaggerNumber
-                    & minimum_ .~ Just 0
-                    )
+                & at "quantity" ?~ toSchemaRef (Proxy :: Proxy Int)
                 & at "unit" ?~ (Inline $ mempty
                     & type_ .~ SwaggerString
                     & enum_ ?~ ["bytes"]
@@ -640,13 +638,23 @@ instance Arbitrary (V1 Core.TxFeePolicy) where
     arbitrary = fmap V1 arbitrary
 
 
+toJSONWithUnit :: ToJSON a => String -> a -> Value
+toJSONWithUnit u a =
+    object
+        [ "unit"     .= u
+        , "quantity" .= toJSON a
+        ]
+-- Warning: String is NOT the unit... god
+parseJSONQuantity :: FromJSON a => String -> Value -> Parser a
+parseJSONQuantity s = withObject s $ \o -> o .: "quantity"
+
 instance ToJSON (V1 Core.TxFeePolicy) where
     toJSON (V1 p) =
         object $ case p of
             Core.TxFeePolicyTxSizeLinear (Core.TxSizeLinear a b) ->
                 [ "tag" .= ("linear" :: String)
-                , "a" .= toJSON a
-                , "b" .= toJSON b
+                , "a" .= toJSONWithUnit "Ada/Byte" a
+                , "b" .= toJSONWithUnit "Ada" b
                 ]
             Core.TxFeePolicyUnknown policyTag policyPayload ->
                 [ "tag" .= ("unknown" :: String)
@@ -658,8 +666,10 @@ instance FromJSON (V1 Core.TxFeePolicy) where
     parseJSON j = V1 <$> (withObject "TxFeePolicy" $ \o -> do
         (tag :: String) <- o .: "tag"
         case tag of
-            "linear" ->
-                Core.TxFeePolicyTxSizeLinear <$> parseJSON j
+            "linear" -> do
+                a <- (o .: "a") >>= parseJSONQuantity "Coeff"
+                b <- (o .: "b") >>= parseJSONQuantity "Coeff"
+                return $ Core.TxFeePolicyTxSizeLinear $ Core.TxSizeLinear a b
             "unknown" -> do
                 t <- o .: "unknownTag"
                 p <- o .: "unknownPayload"
