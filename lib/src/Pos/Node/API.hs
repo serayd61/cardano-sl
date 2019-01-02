@@ -33,7 +33,6 @@ import           GHC.Generics (Generic, Rep)
 import qualified Network.Transport as NT
 import           Node (NodeId (..))
 import qualified Prelude
-import           Serokell.Data.Memory.Units (Byte)
 import           Servant
 import           Test.QuickCheck
 import           Text.ParserCombinators.ReadP (readP_to_S)
@@ -636,16 +635,6 @@ instance FromJSON (V1 Core.SlotId) where
 
 instance Arbitrary (V1 Core.SlotId) where
     arbitrary = fmap V1 arbitrary
-
-
-instance ToSchema Byte where
-    declareNamedSchema _ =
-        pure $ NamedSchema (Just "Byte") $ mempty
-            & type_ .~ SwaggerNumber
-
-instance Buildable Byte where
-    build b = bprint shown b
-
 
 instance Arbitrary (V1 Core.TxFeePolicy) where
     arbitrary = fmap V1 arbitrary
