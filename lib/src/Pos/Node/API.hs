@@ -611,22 +611,14 @@ instance ToSchema SecurityParameter where
 
 
 instance ToSchema (V1 Core.SlotId) where
-    declareNamedSchema _ =
-        pure $ NamedSchema (Just "Core.SlotId") $ mempty
+    declareNamedSchema _ = do
+        word64Schema <- declareSchemaRef (Proxy @Word64)
+        word16Schema <- declareSchemaRef (Proxy @Word16)
+        return $ NamedSchema (Just "SlotId") $ mempty
             & type_ .~ SwaggerObject
-            & required .~ ["slot", "epoch"]
             & properties .~ (mempty
-                & at "slot" ?~ (Inline $ mempty
-                    & type_ .~ SwaggerNumber
-                    & maximum_ .~ Just (fromIntegral (maxBound :: Word16))
-                    & minimum_ .~ Just (fromIntegral (minBound :: Word16))
-                    )
-                & at "epoch" ?~ (Inline $ mempty
-                    & type_ .~ SwaggerNumber
-                    & maximum_ .~ Just (fromIntegral (maxBound :: Word64))
-                    & minimum_ .~ Just (fromIntegral (minBound :: Word64))
-                    )
-                )
+                & at "slot" ?~ word16Schema
+                & at "epoch" ?~ word64Schema)
 
 instance ToJSON (V1 Core.SlotId) where
     toJSON (V1 s) =
